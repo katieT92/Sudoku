@@ -1,2 +1,8 @@
-# Sudoku
-Objective-C program validates Sudoku game solutions using threads and forks to manage processes
+# sudoku-project
+
+Starter code for the sudoku project.
+
+    $ make sudoku.x
+    gcc -o sudoku.x -g -lpthread sudoku.c
+    $ ./sudoku.x < someInputFile
+
