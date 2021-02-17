@@ -44,8 +44,8 @@ int main(int argc, char *argv[])
 {
     parse_args(argc, argv);
 
-    pthread_t workerThreads[27];
-    int currentThread = 0; 
+    pthread_t workerThreads[27]; //Amount of threads we will need in total; 
+    int currentThread = 0;  //current thread for tracking which one has errors and for sending into the pthread_create function. 
 
 
     if (verbose && use_fork) {
