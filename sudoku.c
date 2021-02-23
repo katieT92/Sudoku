@@ -51,7 +51,12 @@ void parse_args(int argc, char *argv[])
     }
 }
 
-
+// Does this count as a global variable, despite that an actual arg_struct is not defined until main?
+// Defining the actual struct within main and passing it to a function is not possible according to research from stackOverflow
+struct arg_struct {
+    int puzzleIdx;
+    int puzzleArg[9][9];
+}; 
 
 int main(int argc, char *argv[])
 {
@@ -67,7 +72,6 @@ int main(int argc, char *argv[])
     int puzzleRows = 9;
     int puzzleCols = 9;
     int puzzle[puzzleRows][puzzleCols];
-    /* int puzzleSize = sizeof(puzzle) / sizeof(puzzle[0]); = 9 */
     int puzzleSize = (sizeof(puzzle) / sizeof(*puzzle)) * (sizeof(puzzle[0]) / sizeof(*puzzle[0])); // = 81
 
     // Read input into the puzzle matrix
@@ -79,32 +83,30 @@ int main(int argc, char *argv[])
 
     // Validate successs of input into puzzle matrix.
     // Continue with thread declarations and creation.
-    //If else statement commented out in order to test thread creation/deletion
    if (validateIncommingArray(puzzleSize)){
         
-        // Preparing struct of arguments for passing multiple parameters to our row/col/grid validating functions
-        struct arg_struct {
-            int puzzleIdx;
-            int puzzleArg[9][9];
-        };
+        // Declare struct of arguments for passing multiple parameters to our row/col/grid validating functions
         struct arg_struct args;
-        memcpy(args.puzzleArg, puzzle, sizeof args.puzzleArg);
+        memcpy(args.puzzleArg, puzzle, sizeof args.puzzleArg); // copies the puzle array to the struct's array
 
-        int numGroupsToValidate = 9;
+        int numGroupsToValidate = 9; // each row group, col group, and grid group will have 9 threads
         int numThreads = 27;
         pthread_t tids[numThreads];
-
+        
         for (int g = 0; g < numGroupsToValidate; g++) {
             args.puzzleIdx = g;
-            // Note that range tids[0-8] will be row threads, tids[9-17] = col threads, tids[18-26] = grid threads
-            // the argument list is being passed as a single structure "args" as per advice on stackoverflow
+            // This creates ranges row[0,3,6,9...], col[1,4,7,10...], grid[2,5,8,11...]
+            // Previously it was row[0,1,2...], col[9,10,11...], grid[18,19,20...]
+            // The change was made in an attempt to fix the thread creation/destruction order 
+            // as well as rectify inconsistent values of g being passed in
+            // Issue still exists - See program output. 
             printf("...Creating Threads...\n");
-            pthread_create(&tids[g], NULL, validateRows, (void *)&args);
-            pthread_create(&tids[g+9], NULL, validateCols, (void *)&args);
-            pthread_create(&tids[g+9+9], NULL, validateGrids, (void *)&args);
+            pthread_create(&tids[g*3], NULL, validateRows, (void *)&args);
+            pthread_create(&tids[g*3+1], NULL, validateCols, (void *)&args);
+            pthread_create(&tids[g*3+2], NULL, validateGrids, (void *)&args);
         }
 
-        for (int g = 0; g < numGroupsToValidate; g++) { 
+        for (int g = 0; g < numThreads; g++) { 
             pthread_join(tids[g], NULL);
             printf("...Threads Destroyed...\n");
         }
@@ -139,6 +141,9 @@ void* validateCols(void *infoStruct){
 // I commented this function out for now to test the above function.
 void* validateGrids(void *infoStruct) {
     printf("Thread entered 'validateGrids' function.\n");
+    struct arg_struct *args = (struct arg_struct *)infoStruct; // Defines a struct we can reference from the param
+    printf("%d\n", args->puzzleIdx); // However wrong values are being passed in due to thread creation order
+
     return NULL;
 
     /* Since we will be passing in parameters 0-8, when 
@@ -213,5 +218,3 @@ void* validateGrids(void *infoStruct) {
     pthread_exit(NULL);
     */
 }
-
-//This is a test for github
