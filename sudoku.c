@@ -138,6 +138,31 @@ void* validateGrids(void *infoStruct) {
     printf("Thread entered 'validateGrids' function.\n");
     struct arg_struct *args = (struct arg_struct *)infoStruct; // Casts a struct we can reference from the param
     printf("%d\n", args->puzzleIdx); // Just checking the values are correct for each call. Should be 0-8
+
+    //Begin validating
+    int row = args->puzzleIdx / 3 * 3;
+    int col = args->puzzleIdx % 3 * 3;
+    int maxRow = row + 3;
+    int maxCol = col + 3;
+    int neededValues[9] = {1, 2, 3, 4, 5, 6, 7, 8, 9};
+
+    while (row < maxRow){
+        while (col < maxCol){
+            int elementCount = 0;
+            for (int i = 0; i < 9; i++){
+                if (args->puzzleArg[row][col] == neededValues[i]){
+                    elementCount++;
+                }
+            }
+            if (elementCount != 1){
+                printf("NOT VALID");
+                return NULL;
+            }
+            col++;
+        }
+        row++;
+    }
+    printf("Valid 3x3 Square!");
     return NULL;
 
     /* Since we will be passing in parameters 0-8, when 
