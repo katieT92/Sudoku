@@ -2,11 +2,8 @@
 #include <unistd.h> 
 #include <stdlib.h>
 #include <getopt.h>
-#include <pthread.h> //used for threads
-#include <string.h> //Removes error given when trying to use 'memcpy' around line 85
-
-// Needed for use of bool data type.
-// There is a note in the google doc to ask if this counts as a prohibited "special dependency"
+#include <pthread.h>
+#include <string.h> //Removes error given when trying to use 'memcpy'
 #include <stdbool.h> 
 
 // Function Prototypes
@@ -14,7 +11,6 @@ bool validateIncommingArray(int arraySize);
 void* validateRows(void *infoStruct);
 void* validateCols(void *infoStruct);
 void* validateGrids(void *infoStruct);
-
 
 /* These are the only two global variables allowed in your program */
 static int verbose = 0;
@@ -51,12 +47,12 @@ void parse_args(int argc, char *argv[])
     }
 }
 
-// Does this count as a global variable, despite that an actual arg_struct is not defined until main?
-// Defining the actual struct within main and passing it to a function is not possible according to research from stackOverflow
+
 struct arg_struct {
     int puzzleIdx;
     int puzzleArg[9][9];
 }; 
+
 
 int main(int argc, char *argv[])
 {
@@ -82,30 +78,29 @@ int main(int argc, char *argv[])
     }
 
     // Validate successs of input into puzzle matrix.
-    // Continue with thread declarations and creation.
    if (validateIncommingArray(puzzleSize)){
         
-        // Declare struct of arguments for passing multiple parameters to our row/col/grid validating functions
-        struct arg_struct args;
-        memcpy(args.puzzleArg, puzzle, sizeof args.puzzleArg); // copies the puzle array to the struct's array
-
         int numGroupsToValidate = 9; // each row group, col group, and grid group will have 9 threads
         int numThreads = 27;
+
+        /* Should tids be dynamically allocated instead?
+        pthread_t *tids;
+        tids = malloc(sizeof(pthread_t)*numThreads);
+        */
         pthread_t tids[numThreads];
         
         for (int g = 0; g < numGroupsToValidate; g++) {
-            args.puzzleIdx = g;
-            // This creates ranges row[0,3,6,9...], col[1,4,7,10...], grid[2,5,8,11...]
-            // Previously it was row[0,1,2...], col[9,10,11...], grid[18,19,20...]
-            // The change was made in an attempt to fix the thread creation/destruction order 
-            // as well as rectify inconsistent values of g being passed in
-            // Issue still exists - See program output. 
+            // Declare pointer to struct of arguments for passing multiple parameters to our row/col/grid validating functions
+            struct arg_struct *args = malloc(sizeof(*args));
+            // copies the puzle array to the struct's array. 
+            // Is there another way to do this? Every struct uses the same array, but we declare every struct in this loop, so i didnt see how else.
+            memcpy(args->puzzleArg, puzzle, sizeof args->puzzleArg); 
+            args->puzzleIdx = g;
             printf("...Creating Threads...\n");
-            pthread_create(&tids[g*3], NULL, validateRows, (void *)&args);
-            pthread_create(&tids[g*3+1], NULL, validateCols, (void *)&args);
-            pthread_create(&tids[g*3+2], NULL, validateGrids, (void *)&args);
+            pthread_create(&tids[g*3], NULL, validateRows, args);
+            pthread_create(&tids[g*3+1], NULL, validateCols, args);
+            pthread_create(&tids[g*3+2], NULL, validateGrids, args);
         }
-
         for (int g = 0; g < numThreads; g++) { 
             pthread_join(tids[g], NULL);
             printf("...Threads Destroyed...\n");
@@ -141,11 +136,34 @@ void* validateCols(void *infoStruct){
 // I commented this function out for now to test the above function.
 void* validateGrids(void *infoStruct) {
     printf("Thread entered 'validateGrids' function.\n");
-    struct arg_struct *args = (struct arg_struct *)infoStruct; // Defines a struct we can reference from the param
-    printf("%d\n", args->puzzleIdx); // However wrong values are being passed in due to thread creation order
+    struct arg_struct *args = (struct arg_struct *)infoStruct; // Casts a struct we can reference from the param
+    printf("%d\n", args->puzzleIdx); // Just checking the values are correct for each call. Should be 0-8
 
-    return NULL;
+    //Begin validating
+    int row = args->puzzleIdx / 3 * 3;
+    int col = args->puzzleIdx % 3 * 3;
+    int maxRow = row + 3;
+    int maxCol = col + 3;
+    int neededValues[9] = {1, 2, 3, 4, 5, 6, 7, 8, 9};
+    
+    for ( int i = 0; i < 9; i++ ) { // for each element count the nunmber of times it occurs in the 3x3 square.
+        int elementCount = 0;
 
+        for ( int r = row; r < maxRow; r++ ) {
+            for ( int c = col; c < maxCol; c++ ) {
+                if ( neededValues[i] == args->puzzleArg[r][c] ) {
+                    elementCount++;
+                }
+            }
+        }
+        if ( elementCount != 1 ) {
+            printf("NOT VALID");
+            return NULL;
+        }
+    }
+    printf("VALID!");
+    pthread_exit(NULL);
+}
     /* Since we will be passing in parameters 0-8, when 
         When 0 is passed in, we will start checking element at [0][0] <-- the top left element of the top left square
         When 1 is passed in, we will start checking element at [0][3] <-- the top left element of the top middle square
@@ -213,8 +231,4 @@ void* validateGrids(void *infoStruct) {
 
         }
     }
-
-
-    pthread_exit(NULL);
-    */
-}
+*/
