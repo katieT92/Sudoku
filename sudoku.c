@@ -145,26 +145,25 @@ void* validateGrids(void *infoStruct) {
     int maxRow = row + 3;
     int maxCol = col + 3;
     int neededValues[9] = {1, 2, 3, 4, 5, 6, 7, 8, 9};
+    
+    for ( int i = 0; i < 9; i++ ) { // for each element count the nunmber of times it occurs in the 3x3 square.
+        int elementCount = 0;
 
-    while (row < maxRow){
-        while (col < maxCol){
-            int elementCount = 0;
-            for (int i = 0; i < 9; i++){
-                if (args->puzzleArg[row][col] == neededValues[i]){
+        for ( int r = row; r < maxRow; r++ ) {
+            for ( int c = col; c < maxCol; c++ ) {
+                if ( neededValues[i] == args->puzzleArg[r][c] ) {
                     elementCount++;
                 }
             }
-            if (elementCount != 1){
-                printf("NOT VALID");
-                return NULL;
-            }
-            col++;
         }
-        row++;
+        if ( elementCount != 1 ) {
+            printf("NOT VALID");
+            return NULL;
+        }
     }
-    printf("Valid 3x3 Square!");
-    return NULL;
-
+    printf("VALID!");
+    pthread_exit(NULL);
+}
     /* Since we will be passing in parameters 0-8, when 
         When 0 is passed in, we will start checking element at [0][0] <-- the top left element of the top left square
         When 1 is passed in, we will start checking element at [0][3] <-- the top left element of the top middle square
@@ -232,8 +231,4 @@ void* validateGrids(void *infoStruct) {
 
         }
     }
-
-
-    pthread_exit(NULL);
-    */
-}
+*/
