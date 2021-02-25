@@ -125,12 +125,52 @@ bool validateIncommingArray(int arrSize) {
 
 void* validateRows(void *infoStruct){
     printf("Thread entered 'validateRows' function.\n");
-    return NULL;
+    struct arg_struct *args = (struct arg_struct *)infoStruct; // Casts a struct we can reference from the param
+    //Begin validating
+    int row = args->puzzleIdx;
+    int col = 0;
+    int neededValues[9] = {1, 2, 3, 4, 5, 6, 7, 8, 9};
+
+    for ( int i = 0; i < 9; i++ ) { // for each element count the nunmber of times it occurs in the row.
+        int elementCount = 0;
+        for ( int c = 0; c < 9; c++ ) {
+            if ( neededValues[i] == args->puzzleArg[row][c] ) {
+                elementCount++;
+            }
+        }
+        if ( elementCount != 1 ) {
+            printf("NOT VALID");
+            return NULL;
+        }
+    }
+    printf("VALID!");
+    pthread_exit(NULL);
+}
 }
 
 void* validateCols(void *infoStruct){
     printf("Thread entered 'validateCols' function.\n");
-    return NULL;
+    //Begin validating
+    struct arg_struct *args = (struct arg_struct *)infoStruct; // Casts a struct we can reference from the param
+    int col = args->puzzleIdx;
+    int row = 0;
+    int neededValues[9] = {1, 2, 3, 4, 5, 6, 7, 8, 9};
+
+    for ( int i = 0; i < 9; i++ ) { // for each element count the nunmber of times it occurs in the row.
+        int elementCount = 0;
+        for ( int r = 0; r < 9; r++ ) {
+            if ( neededValues[i] == args->puzzleArg[r][col] ) {
+                elementCount++;
+            }
+        }
+        if ( elementCount != 1 ) {
+            printf("NOT VALID");
+            return NULL;
+        }
+    }
+    printf("VALID!");
+    pthread_exit(NULL);
+}
 }
 
 // I commented this function out for now to test the above function.
