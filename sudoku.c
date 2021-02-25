@@ -146,7 +146,7 @@ void* validateRows(void *infoStruct){
     printf("VALID!");
     pthread_exit(NULL);
 }
-}
+
 
 void* validateCols(void *infoStruct){
     printf("Thread entered 'validateCols' function.\n");
@@ -171,7 +171,7 @@ void* validateCols(void *infoStruct){
     printf("VALID!");
     pthread_exit(NULL);
 }
-}
+
 
 // I commented this function out for now to test the above function.
 void* validateGrids(void *infoStruct) {
