@@ -3,7 +3,7 @@
 #include <stdlib.h>
 #include <getopt.h>
 #include <pthread.h>
-#include <string.h> //Removes error given when trying to use 'memcpy'
+#include <string.h>
 #include <stdbool.h> 
 
 // Function Prototypes
@@ -47,7 +47,6 @@ void parse_args(int argc, char *argv[])
     }
 }
 
-
 struct arg_struct {
     int puzzleIdx;
     int puzzleArg[9][9];
@@ -70,6 +69,7 @@ int main(int argc, char *argv[])
     int puzzle[puzzleRows][puzzleCols];
     int puzzleSize = (sizeof(puzzle) / sizeof(*puzzle)) * (sizeof(puzzle[0]) / sizeof(*puzzle[0])); // = 81
 
+
     // Read input into the puzzle matrix
     for (int r = 0; r < puzzleRows; r++) {
         for (int c = 0; c < puzzleCols; c++) {
@@ -77,37 +77,42 @@ int main(int argc, char *argv[])
         }
     }
 
+
     // Validate successs of input into puzzle matrix.
    if (validateIncommingArray(puzzleSize)){
         
         int numGroupsToValidate = 9; // each row group, col group, and grid group will have 9 threads
         int numThreads = 27;
-
-        /* Should tids be dynamically allocated instead?
-        pthread_t *tids;
-        tids = malloc(sizeof(pthread_t)*numThreads);
-        */
         pthread_t tids[numThreads];
         
-        for (int g = 0; g < numGroupsToValidate; g++) {
-            // Declare pointer to struct of arguments for passing multiple parameters to our row/col/grid validating functions
-            struct arg_struct *args = malloc(sizeof(*args));
-            // copies the puzle array to the struct's array. 
-            // Is there another way to do this? Every struct uses the same array, but we declare every struct in this loop, so i didnt see how else.
-            memcpy(args->puzzleArg, puzzle, sizeof args->puzzleArg); 
+        // TO DO: Define an array large enough for each element to contain one of our 9 struct pointers.
+        for ( int g = 0; g < numGroupsToValidate; g++ ) { 
+            struct arg_struct *args = malloc( sizeof( *args ) );       // Pointer to struct of arguments for passing multiple parameters to row/col/grid functions
+            memcpy( args->puzzleArg, puzzle, sizeof args->puzzleArg ); 
             args->puzzleIdx = g;
-            printf("...Creating Threads...\n");
-            pthread_create(&tids[g*3], NULL, validateRows, args);
-            pthread_create(&tids[g*3+1], NULL, validateCols, args);
-            pthread_create(&tids[g*3+2], NULL, validateGrids, args);
+            // TO DO: Add the struct pointer to our array that will be defined right before this loop.
+            printf( "...Creating Threads...\n" );
+            pthread_create( &tids[g*3], NULL, validateRows, args );
+            pthread_create( &tids[g*3+1], NULL, validateCols, args );
+            pthread_create( &tids[g*3+2], NULL, validateGrids, args );
+
         }
-        for (int g = 0; g < numThreads; g++) { 
-            pthread_join(tids[g], NULL);
-            printf("...Threads Destroyed...\n");
+
+        for ( int g = 0; g < numThreads; g++ ) { 
+            pthread_join( tids[g], NULL );
+            printf( "...Threads Destroyed...\n" );
         }
+
+        // TO DO: Create a for loop that frees all the struct pointers in the array we create before the pthread_create for loop
+        /*
+        for ( int i = 0; i < numGroupsToValidate; i++ ) {
+            free the struct pointer at structPointerArray[i]
+        }
+        */
+
     }
     else{
-       printf("Failed to populate matrix with input file data.");
+       printf( "Failed to populate matrix with input file data." );
    }
 
     return 0;
@@ -115,12 +120,17 @@ int main(int argc, char *argv[])
 
 
 
-// Takes the size of our 2D array we created as an argument and checks that it is the right size.
-// This function was simplified to avoid errors with passing a 2d array as argument
+
+
+
+// Takes the size of our 2D array as argument and checks for correct size.
 bool validateIncommingArray(int arrSize) {
-    if (arrSize == 81) { return true; } // returns true if the array elements is 81, returns false (Invalid input) if not 81 elements. 
-    return false;
+    return arrSize == 81;
 }
+
+
+
+
 
 
 void* validateRows(void *infoStruct){
@@ -139,13 +149,15 @@ void* validateRows(void *infoStruct){
             }
         }
         if ( elementCount != 1 ) {
-            printf("NOT VALID");
-            return NULL;
+            printf("Row %d doesn't have the required values.\n", row);
         }
     }
-    printf("VALID!");
-    pthread_exit(NULL);
+    pthread_exit(NULL); // Should we return v for valid, i for invalid?
 }
+
+
+
+
 
 
 void* validateCols(void *infoStruct){
@@ -164,16 +176,17 @@ void* validateCols(void *infoStruct){
             }
         }
         if ( elementCount != 1 ) {
-            printf("NOT VALID");
-            return NULL;
+            printf("Column %d doesn't have the required values.\n", col);
         }
     }
-    printf("VALID!");
-    pthread_exit(NULL);
+    pthread_exit(NULL); // Should we return v for valid, i for invalid?
 }
 
 
-// I commented this function out for now to test the above function.
+
+
+
+
 void* validateGrids(void *infoStruct) {
     printf("Thread entered 'validateGrids' function.\n");
     struct arg_struct *args = (struct arg_struct *)infoStruct; // Casts a struct we can reference from the param
@@ -188,7 +201,6 @@ void* validateGrids(void *infoStruct) {
     
     for ( int i = 0; i < 9; i++ ) { // for each element count the nunmber of times it occurs in the 3x3 square.
         int elementCount = 0;
-
         for ( int r = row; r < maxRow; r++ ) {
             for ( int c = col; c < maxCol; c++ ) {
                 if ( neededValues[i] == args->puzzleArg[r][c] ) {
@@ -196,79 +208,48 @@ void* validateGrids(void *infoStruct) {
                 }
             }
         }
+
         if ( elementCount != 1 ) {
-            printf("NOT VALID");
-            return NULL;
+            switch (row) {
+                case 0:
+                    switch (col) {
+                        case 0:
+                            printf("The top left subgrid doesn't have the required values.");
+                            break;
+                        case 3:
+                            printf("The top middle subgrid doesn't have the required values.");
+                            break;
+                        case 6:
+                        printf("The top right subgrid doesn't have the required values.");
+                    }
+                    break;
+                case 3:
+                    switch (col) {
+                        case 0:
+                            printf("The middle left subgrid doesn't have the required values.");
+                            break;
+                        case 3:
+                            printf("The middle subgrid doesn't have the required values.");
+                            break;
+                        case 6:
+                            printf("The middle right subgrid doesn't have the required values.");
+                    }
+                    break;
+                case 6:
+                    switch (col) {
+                        case 0:
+                            printf("The bottom left subgrid doesn't have the required values.");
+                            break;
+                        case 3:
+                            printf("The bottom middle subgrid doesn't have the required values.");
+                            break;
+                        case 6:
+                            printf("The bottom right subgrid doesn't have the required values.");
+
+                    }
+            
+            }
         }
     }
-    printf("VALID!");
-    pthread_exit(NULL);
+    pthread_exit(NULL); // Should we return v for valid, i for invalid?
 }
-    /* Since we will be passing in parameters 0-8, when 
-        When 0 is passed in, we will start checking element at [0][0] <-- the top left element of the top left square
-        When 1 is passed in, we will start checking element at [0][3] <-- the top left element of the top middle square
-        When 2 is passed in, we will start checking element at [0][6] <-- the top left element of the top right square
-        
-        When 3 is passed in, we will start checking element at [3][0] <-- the top left element of the middle left square
-        When 4 is passed in, we will start checking element at [3][3] <-- the top left element of the middle middle square
-        When 5 is passed in, we will start checking element at [3][6] <-- the top left element of the middle right square
-
-        When 6 is passed in, we will start checking element at [6][0] <-- the top left element of the middle left square
-        When 7 is passed in, we will start checking element at [6][3] <-- the top left element of the middle middle square
-        When 8 is passed in, we will start checking element at [6][6] <-- the top left element of the middle right square
-
-        Therefore, the parameter, lets call it, i, can be manipulated as 
-        0 = [0][0]
-        1 = [0][3]
-        2 = [0][6]
-
-        3 = [3][0] 
-        4 = [3][3]
-        5 = [3][6]
-
-        6 = [6][0]
-        7 = [6][3]
-        8 = [6][6]
-
-        i / 3 * 3 will give us the row we should start checking at
-        i % 3 * 3 will give us the col we should start checking at 
-
-        so we can have variables in this function like
-        
-        int row = i / 3 * 3;
-        int col = i % 3 * 3;
-        int maxRow = row + 3;
-        int maxCol = col + 3;
-
-        int neededValues[9] = {1, 2, 3, 4, 5, 6, 7, 8, 9};
-
-        while (row < maxRow){
-            while (col < maxCol){
-                do our checking of inputArray[row][col] against needeValues
-                col++;
-            }
-            row++;
-        }
-
-        -Katie 
-    */
-/*
-    int validArray[9] = 0; //Validation Array to check if number is proper. 
-
-    for (int i = row; i < row + 3; i++) {  //parse through row of information for 3 x 3 grid
-        for (int j = col; j < col + 3; j++) { //parse through Col of information for 3 x 3 grid
-
-            if (*What are we looking for here ?  ) { //If not valid entry in sudoku, Check if number is lower than 1 or greater than 9, then check if we already have that number. 
-
-                //If inside here, it isn't valid and we should flag it's col and row, return by closing thread as it wont hit the close thread at the end of the function. 
-                pthread_exit(NULL);
-            }
-            else {  //Is valid entry thus continues loop. 
-
-
-            }
-
-
-        }
-    }
-*/
