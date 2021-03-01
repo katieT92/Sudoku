@@ -86,30 +86,43 @@ int main(int argc, char *argv[])
         pthread_t tids[numThreads];
         
         // TO DO: Define an array large enough for each element to contain one of our 9 struct pointers.
+        struct arg_struct *args[9];
+        // Should we be doing size 9, for each group; or size 27 for each thread?
+        for (int x = 0; x < numGroupsToValidate; x++){
+            args[x] = malloc(sizeof(*args)); // or malloc(numGroupsToValidate*sizeof(*args))
+            memcpy(args[x]->puzzleArg, puzzle, sizeof args[x]->puzzleArg);
+            args[x]->puzzleIdx = x;
+        }
+
+
         for ( int g = 0; g < numGroupsToValidate; g++ ) { 
-            struct arg_struct *args = malloc( sizeof( *args ) );       // Pointer to struct of arguments for passing multiple parameters to row/col/grid functions
-            memcpy( args->puzzleArg, puzzle, sizeof args->puzzleArg ); 
-            args->puzzleIdx = g;
+            //struct arg_struct *args = malloc( sizeof( *args ) );       // Pointer to struct of arguments for passing multiple parameters to row/col/grid functions
+            //memcpy( args->puzzleArg, puzzle, sizeof args->puzzleArg ); 
+            //args->puzzleIdx = g;
             // TO DO: Add the struct pointer to our array that will be defined right before this loop.
             printf( "...Creating Threads...\n" );
-            pthread_create( &tids[g*3], NULL, validateRows, args );
-            pthread_create( &tids[g*3+1], NULL, validateCols, args );
-            pthread_create( &tids[g*3+2], NULL, validateGrids, args );
+            pthread_create( &tids[g*3], NULL, validateRows, args[g]);
+            pthread_create( &tids[g*3+1], NULL, validateCols, args[g]);
+            pthread_create( &tids[g*3+2], NULL, validateGrids, args[g]);
 
         }
 
         for ( int g = 0; g < numThreads; g++ ) { 
             pthread_join( tids[g], NULL );
             printf( "...Threads Destroyed...\n" );
-        }
+        }    
 
         // TO DO: Create a for loop that frees all the struct pointers in the array we create before the pthread_create for loop
         /*
-        for ( int i = 0; i < numGroupsToValidate; i++ ) {
-            free the struct pointer at structPointerArray[i]
-        }
+        for(int i=0; i<numGroupsToValidate; i++){
+            free(args[i]->puzzleArg);
+            free(args[i]->puzzleIdx);
+        }  
+        free(args);
         */
-
+        for(int i=0; i<sizeof(*args); i++){
+            free(args[i]);
+        }  
     }
     else{
        printf( "Failed to populate matrix with input file data." );
@@ -117,8 +130,6 @@ int main(int argc, char *argv[])
 
     return 0;
 }
-
-
 
 
 
@@ -149,9 +160,12 @@ void* validateRows(void *infoStruct){
             }
         }
         if ( elementCount != 1 ) {
-            printf("Row %d doesn't have the required values.\n", row);
+            printf("Row %d NOT VALID\n", row);
+            // WILL NOT RETURN SO WE CAN CHECK EVERYHWERE IT IS NOT VALID
+            //return NULL;
         }
     }
+    printf("Row %d VALID!\n", row);
     pthread_exit(NULL); // Should we return v for valid, i for invalid?
 }
 
@@ -159,9 +173,8 @@ void* validateRows(void *infoStruct){
 
 
 
-
 void* validateCols(void *infoStruct){
-    printf("Thread entered 'validateCols' function.\n");
+    //printf("Thread entered 'validateCols' function.\n");
     //Begin validating
     struct arg_struct *args = (struct arg_struct *)infoStruct; // Casts a struct we can reference from the param
     int col = args->puzzleIdx;
@@ -176,10 +189,13 @@ void* validateCols(void *infoStruct){
             }
         }
         if ( elementCount != 1 ) {
-            printf("Column %d doesn't have the required values.\n", col);
+            printf("Col %d NOT VALID\n", col);
+            // WILL NOT RETURN SO WE CAN CHECK EVERYHWERE IT IS NOT VALID
+            //return NULL; 
         }
     }
-    pthread_exit(NULL); // Should we return v for valid, i for invalid?
+    printf("Col %d VALID!\n", col);
+    pthread_exit(NULL);
 }
 
 
