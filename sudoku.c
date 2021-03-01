@@ -99,28 +99,17 @@ int main(int argc, char *argv[])
             pthread_create( &tids[g*3+1], NULL, validateCols, arrayStruct[g]);
             pthread_create( &tids[g*3+2], NULL, validateGrids, arrayStruct[g]);
         }
-        //TODO: finish last output lines. 
-        /*
-        for (int i = 0; i < numGroupsToValidate; i++){
-            if(validateRows(arrayStruct[i])=='i' || validateCols(arrayStruct[i])=='i' || validateGrids(arrayStruct[i])=='i')
-                printf("The input is not a valid Sudoku.");
-            else printf("The input is a valid Sudoku.");
-        }
-        */
-
+        
+        intptr_t validness;
+        char validChar = 'v';
         for ( int g = 0; g < numThreads; g++ ) { 
-            pthread_join( tids[g], NULL );
+            pthread_join( tids[g], (void **) &validness );
+            if(validness == 'i') validChar = 'i';
             //printf( "...Threads Destroyed...\n" );
-        }    
+        }   
+        if(validChar == 'i') printf("The input is not a valid Sudoku.\n");
+        else printf("The input is a valid Sudoku.\n");
 
-        // TO DO: Create a for loop that frees all the struct pointers in the array we create before the pthread_create for loop
-        /*
-        for(int i=0; i<numGroupsToValidate; i++){
-            free(args[i]->puzzleArg);
-            free(args[i]->puzzleIdx);
-        }  
-        free(args);
-        */
         for(int i=0; i<numGroupsToValidate; i++){
             free(arrayStruct[i]);
         }  
