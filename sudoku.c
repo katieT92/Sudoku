@@ -5,6 +5,7 @@
 #include <pthread.h>
 #include <string.h>
 #include <stdbool.h> 
+#include <inttypes.h> //Using to return char for void* functions. 
 
 // Function Prototypes
 bool validateIncommingArray(int arraySize);
@@ -85,31 +86,31 @@ int main(int argc, char *argv[])
         int numThreads = 27;
         pthread_t tids[numThreads];
         
-        // TO DO: Define an array large enough for each element to contain one of our 9 struct pointers.
-        struct arg_struct *args[9];
-        // Should we be doing size 9, for each group; or size 27 for each thread?
-        for (int x = 0; x < numGroupsToValidate; x++){
-            args[x] = malloc(sizeof(*args)); // or malloc(numGroupsToValidate*sizeof(*args))
-            memcpy(args[x]->puzzleArg, puzzle, sizeof args[x]->puzzleArg);
-            args[x]->puzzleIdx = x;
-        }
-
+        struct arg_struct *arrayStruct[9];
 
         for ( int g = 0; g < numGroupsToValidate; g++ ) { 
-            //struct arg_struct *args = malloc( sizeof( *args ) );       // Pointer to struct of arguments for passing multiple parameters to row/col/grid functions
-            //memcpy( args->puzzleArg, puzzle, sizeof args->puzzleArg ); 
-            //args->puzzleIdx = g;
+            struct arg_struct *args = malloc( sizeof( *args ) );       // Pointer to struct of arguments for passing multiple parameters to row/col/grid functions
+            memcpy( args->puzzleArg, puzzle, sizeof args->puzzleArg ); 
+            args->puzzleIdx = g;
+            arrayStruct[g] = args;
             // TO DO: Add the struct pointer to our array that will be defined right before this loop.
-            printf( "...Creating Threads...\n" );
-            pthread_create( &tids[g*3], NULL, validateRows, args[g]);
-            pthread_create( &tids[g*3+1], NULL, validateCols, args[g]);
-            pthread_create( &tids[g*3+2], NULL, validateGrids, args[g]);
-
+            //printf( "...Creating Threads...\n" );
+            pthread_create( &tids[g*3], NULL, validateRows, arrayStruct[g]);
+            pthread_create( &tids[g*3+1], NULL, validateCols, arrayStruct[g]);
+            pthread_create( &tids[g*3+2], NULL, validateGrids, arrayStruct[g]);
         }
+        //TODO: finish last output lines. 
+        /*
+        for (int i = 0; i < numGroupsToValidate; i++){
+            if(validateRows(arrayStruct[i])=='i' || validateCols(arrayStruct[i])=='i' || validateGrids(arrayStruct[i])=='i')
+                printf("The input is not a valid Sudoku.");
+            else printf("The input is a valid Sudoku.");
+        }
+        */
 
         for ( int g = 0; g < numThreads; g++ ) { 
             pthread_join( tids[g], NULL );
-            printf( "...Threads Destroyed...\n" );
+            //printf( "...Threads Destroyed...\n" );
         }    
 
         // TO DO: Create a for loop that frees all the struct pointers in the array we create before the pthread_create for loop
@@ -120,8 +121,8 @@ int main(int argc, char *argv[])
         }  
         free(args);
         */
-        for(int i=0; i<sizeof(*args); i++){
-            free(args[i]);
+        for(int i=0; i<numGroupsToValidate; i++){
+            free(arrayStruct[i]);
         }  
     }
     else{
@@ -145,9 +146,10 @@ bool validateIncommingArray(int arrSize) {
 
 
 void* validateRows(void *infoStruct){
-    printf("Thread entered 'validateRows' function.\n");
+    //printf("Thread entered 'validateRows' function.\n");
     struct arg_struct *args = (struct arg_struct *)infoStruct; // Casts a struct we can reference from the param
     //Begin validating
+    char isValid = 'v';
     int row = args->puzzleIdx;
     int col = 0;
     int neededValues[9] = {1, 2, 3, 4, 5, 6, 7, 8, 9};
@@ -160,13 +162,16 @@ void* validateRows(void *infoStruct){
             }
         }
         if ( elementCount != 1 ) {
-            printf("Row %d NOT VALID\n", row);
+            printf("Row %d doesn't have the required values.\n", row);
+            isValid = 'i';
             // WILL NOT RETURN SO WE CAN CHECK EVERYHWERE IT IS NOT VALID
             //return NULL;
         }
     }
-    printf("Row %d VALID!\n", row);
-    pthread_exit(NULL); // Should we return v for valid, i for invalid?
+    //printf("Row %d VALID!\n", row);
+    intptr_t i = isValid;
+    return *(void **)&i;
+    //pthread_exit(isValid); // pthead_exit should be used for early termination only https://pubs.opengroup.org/onlinepubs/9699919799/functions/pthread_exit.html
 }
 
 
@@ -177,6 +182,7 @@ void* validateCols(void *infoStruct){
     //printf("Thread entered 'validateCols' function.\n");
     //Begin validating
     struct arg_struct *args = (struct arg_struct *)infoStruct; // Casts a struct we can reference from the param
+    char isValid = 'v';
     int col = args->puzzleIdx;
     int row = 0;
     int neededValues[9] = {1, 2, 3, 4, 5, 6, 7, 8, 9};
@@ -189,13 +195,15 @@ void* validateCols(void *infoStruct){
             }
         }
         if ( elementCount != 1 ) {
-            printf("Col %d NOT VALID\n", col);
+            printf("Column %d doesn't have the required values.\n", col);
+            isValid = 'i';
             // WILL NOT RETURN SO WE CAN CHECK EVERYHWERE IT IS NOT VALID
             //return NULL; 
         }
     }
-    printf("Col %d VALID!\n", col);
-    pthread_exit(NULL);
+    //printf("Col %d VALID!\n", col);
+    intptr_t i = isValid;
+    return *(void **)&i;
 }
 
 
@@ -204,9 +212,10 @@ void* validateCols(void *infoStruct){
 
 
 void* validateGrids(void *infoStruct) {
-    printf("Thread entered 'validateGrids' function.\n");
+    //printf("Thread entered 'validateGrids' function.\n");
+    char isValid = 'v';
     struct arg_struct *args = (struct arg_struct *)infoStruct; // Casts a struct we can reference from the param
-    printf("%d\n", args->puzzleIdx); // Just checking the values are correct for each call. Should be 0-8
+    //printf("%d\n", args->puzzleIdx); // Just checking the values are correct for each call. Should be 0-8
 
     //Begin validating
     int row = args->puzzleIdx / 3 * 3;
@@ -226,46 +235,48 @@ void* validateGrids(void *infoStruct) {
         }
 
         if ( elementCount != 1 ) {
+            isValid = 'i';
             switch (row) {
                 case 0:
                     switch (col) {
                         case 0:
-                            printf("The top left subgrid doesn't have the required values.");
+                            printf("The top left subgrid doesn't have the required values.\n");
                             break;
                         case 3:
-                            printf("The top middle subgrid doesn't have the required values.");
+                            printf("The top middle subgrid doesn't have the required values.\n");
                             break;
                         case 6:
-                        printf("The top right subgrid doesn't have the required values.");
+                        printf("The top right subgrid doesn't have the required values.\n");
                     }
                     break;
                 case 3:
                     switch (col) {
                         case 0:
-                            printf("The middle left subgrid doesn't have the required values.");
+                            printf("The middle left subgrid doesn't have the required values.\n");
                             break;
                         case 3:
-                            printf("The middle subgrid doesn't have the required values.");
+                            printf("The middle subgrid doesn't have the required values.\n");
                             break;
                         case 6:
-                            printf("The middle right subgrid doesn't have the required values.");
+                            printf("The middle right subgrid doesn't have the required values.\n");
                     }
                     break;
                 case 6:
                     switch (col) {
                         case 0:
-                            printf("The bottom left subgrid doesn't have the required values.");
+                            printf("The bottom left subgrid doesn't have the required values.\n");
                             break;
                         case 3:
-                            printf("The bottom middle subgrid doesn't have the required values.");
+                            printf("The bottom middle subgrid doesn't have the required values.\n");
                             break;
                         case 6:
-                            printf("The bottom right subgrid doesn't have the required values.");
+                            printf("The bottom right subgrid doesn't have the required values.\n");
 
                     }
             
             }
         }
     }
-    pthread_exit(NULL); // Should we return v for valid, i for invalid?
+    intptr_t i = isValid;
+    return *(void **)&i;
 }
