@@ -6,6 +6,9 @@
 #include <string.h>
 #include <stdbool.h> 
 #include <inttypes.h> //Using to return char for void* functions. 
+#include <sys/types.h> // for forks
+#include <sys/wait.h> // for forks
+
 
 // Function Prototypes
 bool validateIncommingArray(int arraySize);
@@ -13,14 +16,19 @@ void* validateRows(void *infoStruct);
 void* validateCols(void *infoStruct);
 void* validateGrids(void *infoStruct);
 
+
 /* These are the only two global variables allowed in your program */
 static int verbose = 0;
 static int use_fork = 0;
+struct arg_struct {
+    int puzzleIdx;
+    int puzzleArg[9][9];
+}; 
+
 
 // This is a simple function to parse the --fork argument.
 // It also supports --verbose, -v
-void parse_args(int argc, char *argv[])
-{
+void parse_args(int argc, char *argv[]) {
     int c;
     while (1)
     {
@@ -34,8 +42,7 @@ void parse_args(int argc, char *argv[])
         c = getopt_long (argc, argv, "vf", long_options, &option_index);
         if (c == -1) break;
 
-        switch (c)
-        {
+        switch (c) {
             case 'f':
                 use_fork = 1;
                 break;
@@ -48,45 +55,70 @@ void parse_args(int argc, char *argv[])
     }
 }
 
-struct arg_struct {
-    int puzzleIdx;
-    int puzzleArg[9][9];
-}; 
 
-
-int main(int argc, char *argv[])
-{
+int main(int argc, char *argv[]) {
     parse_args(argc, argv);
 
-    if (verbose && use_fork) {
-        printf("We are forking child processes as workers.\n");
-    } else if (verbose) {
-        printf("We are using worker threads.\n");
-    }
-
+    // Moved up here so we can use in both fork conditional and thread conditional
     // Define puzzle and the dimensions for the puzzle we will read input into
     int puzzleRows = 9;
     int puzzleCols = 9;
     int puzzle[puzzleRows][puzzleCols];
     int puzzleSize = (sizeof(puzzle) / sizeof(*puzzle)) * (sizeof(puzzle[0]) / sizeof(*puzzle[0])); // = 81
-
+    int numGroupsToValidate = 9; // each row group, col group, and grid group will have 9 threads
+    struct arg_struct *arrayStruct[9];
 
     // Read input into the puzzle matrix
     for (int r = 0; r < puzzleRows; r++) {
         for (int c = 0; c < puzzleCols; c++) {
-        scanf("%d",&puzzle[r][c]);
+            scanf("%d",&puzzle[r][c]);
         }
     }
 
-
     // Validate successs of input into puzzle matrix.
-   if (validateIncommingArray(puzzleSize)){
-        
-        int numGroupsToValidate = 9; // each row group, col group, and grid group will have 9 threads
+    if (!validateIncommingArray(puzzleSize)){
+        printf( "Failed to populate matrix with input file data." );
+        exit(1);
+    }
+
+
+    // Runs when terminal command requests to use forks -> ./sudoku.x --fork < tests/example1.txt
+    if (/*verbose && */use_fork) {
+        for ( int g = 0; g < numGroupsToValidate; g++ ) { 
+            struct arg_struct *args = malloc( sizeof( *args ) );       // Pointer to struct of arguments for passing multiple parameters to row/col/grid functions
+            memcpy( args->puzzleArg, puzzle, sizeof args->puzzleArg ); 
+            args->puzzleIdx = g;
+            arrayStruct[g] = args;
+        }
+
+        pid_t pid[27];
+        void* v1;
+        void* v2;
+        void* v3;
+
+        // How do we fix this.
+        for (int i = 0; i < 27; i++) {
+            pid[i] = fork();
+
+            if (pid[i] == 0){
+                if (i >= 0 && i < 9){
+                    v1 = validateRows(arrayStruct[i]);
+                }
+                else if (i >= 9 && i < 17){
+                    v2 = validateCols(arrayStruct[i]);
+                }
+                else if (i >= 17 && i < 27){
+                    v3 = validateGrids(arrayStruct[i]);
+                }  
+                else{
+                    printf("Error with thread.");
+                } 
+            }
+        }
+    }
+    else /*if (verbose)*/ { // Runs when terminal command requests to use threads -> ./sudoku.x < tests/example1.txt
         int numThreads = 27;
         pthread_t tids[numThreads];
-        
-        struct arg_struct *arrayStruct[9];
 
         for ( int g = 0; g < numGroupsToValidate; g++ ) { 
             struct arg_struct *args = malloc( sizeof( *args ) );       // Pointer to struct of arguments for passing multiple parameters to row/col/grid functions
@@ -113,11 +145,8 @@ int main(int argc, char *argv[])
         for(int i=0; i<numGroupsToValidate; i++){
             free(arrayStruct[i]);
         }  
-    }
-    else{
-       printf( "Failed to populate matrix with input file data." );
-   }
 
+    }
     return 0;
 }
 
@@ -128,8 +157,6 @@ int main(int argc, char *argv[])
 bool validateIncommingArray(int arrSize) {
     return arrSize == 81;
 }
-
-
 
 
 
@@ -151,10 +178,11 @@ void* validateRows(void *infoStruct){
             }
         }
         if ( elementCount != 1 ) {
-            printf("Row %d doesn't have the required values.\n", row);
+            printf("Row %d doesn't have the required values.\n", row+1);
             isValid = 'i';
             // WILL NOT RETURN SO WE CAN CHECK EVERYHWERE IT IS NOT VALID
             //return NULL;
+            break;
         }
     }
     //printf("Row %d VALID!\n", row);
@@ -162,7 +190,6 @@ void* validateRows(void *infoStruct){
     return *(void **)&i;
     //pthread_exit(isValid); // pthead_exit should be used for early termination only https://pubs.opengroup.org/onlinepubs/9699919799/functions/pthread_exit.html
 }
-
 
 
 
@@ -184,10 +211,11 @@ void* validateCols(void *infoStruct){
             }
         }
         if ( elementCount != 1 ) {
-            printf("Column %d doesn't have the required values.\n", col);
+            printf("Column %d doesn't have the required values.\n", col+1);
             isValid = 'i';
             // WILL NOT RETURN SO WE CAN CHECK EVERYHWERE IT IS NOT VALID
             //return NULL; 
+            break;
         }
     }
     //printf("Col %d VALID!\n", col);
@@ -264,6 +292,7 @@ void* validateGrids(void *infoStruct) {
                     }
             
             }
+            break;
         }
     }
     intptr_t i = isValid;
