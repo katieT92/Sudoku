@@ -6,8 +6,8 @@
 #include <string.h>
 #include <stdbool.h> 
 #include <inttypes.h> //Using to return char for void* functions. 
-#include <sys/types.h> // for forks
-#include <sys/wait.h> // for forks
+#include <sys/types.h> // do we need this for our implementation of forks?
+#include <sys/wait.h> // do we need this for our implementation of forks?
 
 
 // Function Prototypes
@@ -59,7 +59,6 @@ void parse_args(int argc, char *argv[]) {
 int main(int argc, char *argv[]) {
     parse_args(argc, argv);
 
-    // Moved up here so we can use in both fork conditional and thread conditional
     // Define puzzle and the dimensions for the puzzle we will read input into
     int puzzleRows = 9;
     int puzzleCols = 9;
@@ -82,41 +81,46 @@ int main(int argc, char *argv[]) {
     }
 
 
-    // Runs when terminal command requests to use forks -> ./sudoku.x --fork < tests/example1.txt
+    // FORKS: e.i. -> ./sudoku.x --fork < tests/example2.txt
     if (/*verbose && */use_fork) {
+
         for ( int g = 0; g < numGroupsToValidate; g++ ) { 
             struct arg_struct *args = malloc( sizeof( *args ) );       // Pointer to struct of arguments for passing multiple parameters to row/col/grid functions
-            memcpy( args->puzzleArg, puzzle, sizeof args->puzzleArg ); 
-            args->puzzleIdx = g;
-            arrayStruct[g] = args;
+            memcpy( args->puzzleArg, puzzle, sizeof args->puzzleArg );  // Copies the array to the arg struct's array
+            args->puzzleIdx = g;                                        // Index to be checked in functions
+            arrayStruct[g] = args;                                      // Add args to an array
         }
 
-        pid_t pid[27];
-        void* v1;
-        void* v2;
+        pid_t pid[27];                                                      // We need 27 forked processes
+        void* v1;                                                            // These void*'s were made for testing return values of functions
+        void* v2;                                                             // Not necessarily needed. Remove if you see fit
         void* v3;
 
-        // How do we fix this.
-        for (int i = 0; i < 27; i++) {
-            pid[i] = fork();
+        for (int i = 0; i < 27; i++) { 
+            pid[i] = fork();                                                //Forks 27 times and adds fork return value to pid array
 
             if (pid[i] == 0){
-                if (i >= 0 && i < 9){
-                    v1 = validateRows(arrayStruct[i]);
+                if (i >= 0 && i < 9){                                       // 9 forks shold call this function with arrayStruct[0-9]
+                    v1 = validateRows(arrayStruct[i%9]);
+                    break; // Is this what we want??
                 }
                 else if (i >= 9 && i < 17){
-                    v2 = validateCols(arrayStruct[i]);
+                    v2 = validateCols(arrayStruct[i%9]);                    // 9 forks shold call this function with arrayStruct[0-9]
+                    break; // Is this what we want??
                 }
                 else if (i >= 17 && i < 27){
-                    v3 = validateGrids(arrayStruct[i]);
+                    v3 = validateGrids(arrayStruct[i%9]);                   // The last 9 forks shold call this function with arrayStruct[0-9]
+                    break; // Is this what we want??
                 }  
                 else{
                     printf("Error with thread.");
+                    exit(1);
                 } 
             }
         }
+        // We need final output statement.
     }
-    else /*if (verbose)*/ { // Runs when terminal command requests to use threads -> ./sudoku.x < tests/example1.txt
+    else /*if (verbose)*/ { // THREADS: e.i. -> ./sudoku.x < tests/example2.txt
         int numThreads = 27;
         pthread_t tids[numThreads];
 
