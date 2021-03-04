@@ -102,15 +102,16 @@ int main(int argc, char *argv[]) {
             if (pid[i] == 0){
                 if (i >= 0 && i < 9){                                       // 9 forks shold call this function with arrayStruct[0-9]
                     v1 = validateRows(arrayStruct[i%9]);
-                    break; // Is this what we want??
+                    printf("%d",v1);
+                    exit(0);
                 }
                 else if (i >= 9 && i < 17){
                     v2 = validateCols(arrayStruct[i%9]);                    // 9 forks shold call this function with arrayStruct[0-9]
-                    break; // Is this what we want??
+                    exit(0);
                 }
                 else if (i >= 17 && i < 27){
                     v3 = validateGrids(arrayStruct[i%9]);                   // The last 9 forks shold call this function with arrayStruct[0-9]
-                    break; // Is this what we want??
+                    exit(0);
                 }  
                 else{
                     printf("Error with thread.");
@@ -118,6 +119,7 @@ int main(int argc, char *argv[]) {
                 } 
             }
         }
+        while(wait(NULL) != -1); //Helps reap zombie children :) - Use for return values
         // We need final output statement.
     }
     else /*if (verbose)*/ { // THREADS: e.i. -> ./sudoku.x < tests/example2.txt
@@ -146,11 +148,10 @@ int main(int argc, char *argv[]) {
         if(validChar == 'i') printf("The input is not a valid Sudoku.\n");
         else printf("The input is a valid Sudoku.\n");
 
-        for(int i=0; i<numGroupsToValidate; i++){
-            free(arrayStruct[i]);
-        }  
-
     }
+        for(int i=0; i<numGroupsToValidate; i++){
+        free(arrayStruct[i]);
+        }  
     return 0;
 }
 
