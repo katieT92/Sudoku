@@ -55,9 +55,47 @@ int main(int argc, char *argv[])
     } else if (verbose) {
         printf("We are using worker threads.\n");
 
+<<<<<<< Updated upstream
         pthread_create(&workerThreads[currentThread++], NULL, isGridValid, infoStruct);  //example of how to call with thread for isGridValid. 
 
 
+=======
+        pid_t pid[27];                                                      // We need 27 forked processes
+        char isValid = 'v';                                                 // Tracks if each section is valid.  in child it will pass to the parent. Parent value will be checked to see if Sudoku is Valid or not. 
+       for (int i = 0; i < 27; i++) { 
+            pid[i] = vfork();                                                //Forks 27 times and adds fork return value to pid array: Changed to vfork to support changing isValid by children.
+
+            if (pid[i] == 0){
+                if (i >= 0 && i < 9){                                       
+                    if((int*)validateRows(arrayStruct[i%9]) == (void*)'i'){ // 9 forks shold call this function with arrayStruct[0-9]. Compares value returned by the function with invalid, if invalid it will set parent isValid to false.
+                        isValid = 'i';
+                    }
+                    exit(0);
+                }
+                else if (i >= 9 && i < 17){
+                    if((int*) validateCols(arrayStruct[i%9]) == (void*)'i'){ // 9 forks shold call this function with arrayStruct[0-9]. Compares value returned by the function with invalid, if invalid it will set parent isValid to false.
+                        isValid = 'i';
+                    }                   
+                    exit(0);
+                }
+                else if (i >= 17 && i < 27){    
+                   if((int*) validateGrids(arrayStruct[i%9]) == (void*)'i'){  // The last 9 forks shold call this function with arrayStruct[0-9]. Compares value returned by the function with invalid, if invalid it will set parent isValid to false.
+                        isValid = 'i';
+                    }                  
+                    exit(0);
+                }  
+                else{
+                    printf("Error with thread.");
+                    exit(1);
+                } 
+            }
+        }
+        while(wait(NULL) != -1); //Helps reap zombie children :) - Use for return values
+
+         if(isValid == 'i') printf("The input is not a valid Sudoku.\n"); //Tracks parent isValid which will be adjusted by children forks with vfork().
+        else printf("The input is a valid Sudoku.\n");
+
+>>>>>>> Stashed changes
     }
 
 
