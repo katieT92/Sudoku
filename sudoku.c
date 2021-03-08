@@ -6,8 +6,7 @@
 #include <string.h>
 #include <stdbool.h> 
 #include <inttypes.h> //Using to return char for void* functions. 
-#include <sys/types.h> // do we need this for our implementation of forks?
-#include <sys/wait.h> // do we need this for our implementation of forks?
+#include <sys/wait.h> 
 
 
 // Function Prototypes
@@ -26,12 +25,11 @@ struct arg_struct {
 }; 
 
 
-// This is a simple function to parse the --fork argument.
-// It also supports --verbose, -v
+
+// This is a simple function to parse the --fork argument. It also supports --verbose, -v
 void parse_args(int argc, char *argv[]) {
     int c;
-    while (1)
-    {
+    while (1) {
         static struct option long_options[] =
         {
             {"verbose", no_argument,       0, 'v'},
@@ -56,16 +54,19 @@ void parse_args(int argc, char *argv[]) {
 }
 
 
+
 int main(int argc, char *argv[]) {
+
     parse_args(argc, argv);
 
     // Define puzzle and the dimensions for the puzzle we will read input into
-    int puzzleRows = 9;
-    int puzzleCols = 9;
+    int numGroupsToValidate = 9; // each row group, col group, and grid group will have 9 threads/children
+    int puzzleRows = numGroupsToValidate;
+    int puzzleCols = numGroupsToValidate;
     int puzzle[puzzleRows][puzzleCols];
     int puzzleSize = (sizeof(puzzle) / sizeof(*puzzle)) * (sizeof(puzzle[0]) / sizeof(*puzzle[0])); // = 81
-    int numGroupsToValidate = 9; // each row group, col group, and grid group will have 9 threads
-    struct arg_struct *arrayStruct[9];
+    struct arg_struct *arrayStruct[numGroupsToValidate];
+
 
     // Read input into the puzzle matrix
     for (int r = 0; r < puzzleRows; r++) {
@@ -74,6 +75,7 @@ int main(int argc, char *argv[]) {
         }
     }
 
+
     // Validate successs of input into puzzle matrix.
     if (!validateIncommingArray(puzzleSize)){
         printf( "Failed to populate matrix with input file data." );
@@ -81,57 +83,69 @@ int main(int argc, char *argv[]) {
     }
 
 
-    // FORKS: e.i. -> ./sudoku.x --fork < tests/example2.txt
+    /***************************************************************************************
+    *                                         FORKS                                        *
+    ***************************************************************************************/
+
     if (/*verbose && */use_fork) {
 
         for ( int g = 0; g < numGroupsToValidate; g++ ) { 
-            struct arg_struct *args = malloc( sizeof( *args ) );       // Pointer to struct of arguments for passing multiple parameters to row/col/grid functions
-            memcpy( args->puzzleArg, puzzle, sizeof args->puzzleArg );  // Copies the array to the arg struct's array
-            args->puzzleIdx = g;                                        // Index to be checked in functions
-            arrayStruct[g] = args;                                      // Add args to an array
+            struct arg_struct *args = malloc( sizeof( *args ) );       // *Struct of args for passing functions multiple params
+            memcpy( args->puzzleArg, puzzle, sizeof args->puzzleArg ); // Copies the array to the arg struct's array
+            args->puzzleIdx = g;                                       // Index to be checked in functions
+            arrayStruct[g] = args;                                     // Add args to an array
         }
 
-        pid_t pid[27];                                                      // We need 27 forked processes
-        char isValid = 'v';                                                 // Tracks if each section is valid.  in child it will pass to the parent. Parent value will be checked to see if Sudoku is Valid or not. 
-       for (int i = 0; i < 27; i++) { 
-            pid[i] = vfork();                                                //Forks 27 times and adds fork return value to pid array: Changed to vfork to support changing isValid by children.
+        int numProcesses = 27;
+        pid_t pid[numProcesses];
+
+
+        for (int i = 0; i < numProcesses; i++) {
+            
+            pid[i] = fork();       
 
             if (pid[i] == 0){
-                if (i >= 0 && i < 9){                                       
-                    if((int*)validateRows(arrayStruct[i%9]) == (void*)'i'){ // 9 forks shold call this function with arrayStruct[0-9]. Compares value returned by the function with invalid, if invalid it will set parent isValid to false.
-                        isValid = 'i';
-                    }
-                    exit(0);
-                }
-                else if (i >= 9 && i < 17){
-                    if((int*) validateCols(arrayStruct[i%9]) == (void*)'i'){ // 9 forks shold call this function with arrayStruct[0-9]. Compares value returned by the function with invalid, if invalid it will set parent isValid to false.
-                        isValid = 'i';
-                    }                   
-                    exit(0);
-                }
-                else if (i >= 17 && i < 27){    
-                   if((int*) validateGrids(arrayStruct[i%9]) == (void*)'i'){  // The last 9 forks shold call this function with arrayStruct[0-9]. Compares value returned by the function with invalid, if invalid it will set parent isValid to false.
-                        isValid = 'i';
-                    }                  
-                    exit(0);
-                }  
-                else{
+                if (i >= 0 && i < 9)  
+                    exit(validateRows(arrayStruct[i%9]) == (void *)'v' ? 1 : 0);                                   
+                else if (i >= 9 && i < 17)
+                    exit(validateCols(arrayStruct[i%9]) == (void *)'v' ? 1 : 0);
+                else if (i >= 17 && i < 27)   
+                   exit(validateGrids(arrayStruct[i%9]) == (void *)'v' ? 1 : 0);
+                else
                     printf("Error with thread.");
-                    exit(1);
-                } 
+                    exit(0);
             }
         }
-        while(wait(NULL) != -1); //Helps reap zombie children :) - Use for return values
 
-         if(isValid == 'i') printf("The input is not a valid Sudoku.\n"); //Tracks parent isValid which will be adjusted by children forks with vfork().
-        else printf("The input is a valid Sudoku.\n");
+        int status = 0, childValidityIndex = 0;
+        char childValidities[numProcesses];
+
+        while(wait(&status) > 0){ // Reap zombie children :) - Use for return values
+            childValidities[childValidityIndex] = status > 0 ? 'v' : 'i'; 
+            childValidityIndex++;
+        }
+
+        for (int i = 0; i < numProcesses; i++){
+            if (childValidities[i] == 'i'){
+                printf("The input is not a valid Sudoku.\n");
+                exit(0);
+            }
+        }
+        printf("The input is a valid Sudoku.\n");
 
     }
-    else /*if (verbose)*/ { // THREADS: e.i. -> ./sudoku.x < tests/example2.txt
+
+    /***************************************************************************************
+    *                                       Threads                                        *
+    ***************************************************************************************/
+
+    else /*if (verbose)*/ {
+
         int numThreads = 27;
         pthread_t tids[numThreads];
 
         for ( int g = 0; g < numGroupsToValidate; g++ ) { 
+
             struct arg_struct *args = malloc( sizeof( *args ) );       // Pointer to struct of arguments for passing multiple parameters to row/col/grid functions
             memcpy( args->puzzleArg, puzzle, sizeof args->puzzleArg ); 
             args->puzzleIdx = g;
@@ -141,22 +155,29 @@ int main(int argc, char *argv[]) {
             pthread_create( &tids[g*3], NULL, validateRows, arrayStruct[g]);
             pthread_create( &tids[g*3+1], NULL, validateCols, arrayStruct[g]);
             pthread_create( &tids[g*3+2], NULL, validateGrids, arrayStruct[g]);
+
         }
-        
+
         intptr_t validness;
         char validChar = 'v';
+
         for ( int g = 0; g < numThreads; g++ ) { 
             pthread_join( tids[g], (void **) &validness );
             if(validness == 'i') validChar = 'i';
             //printf( "...Threads Destroyed...\n" );
         }   
+
         if(validChar == 'i') printf("The input is not a valid Sudoku.\n");
         else printf("The input is a valid Sudoku.\n");
 
     }
-        for(int i=0; i<numGroupsToValidate; i++){
+
+
+    // Free memory for dynamic array of structs
+    for(int i=0; i<numGroupsToValidate; i++){
         free(arrayStruct[i]);
-        }  
+    }  
+
     return 0;
 }
 
@@ -172,9 +193,8 @@ bool validateIncommingArray(int arrSize) {
 
 
 void* validateRows(void *infoStruct){
-    //printf("Thread entered 'validateRows' function.\n");
+
     struct arg_struct *args = (struct arg_struct *)infoStruct; // Casts a struct we can reference from the param
-    //Begin validating
     char isValid = 'v';
     int row = args->puzzleIdx;
     int col = 0;
@@ -182,20 +202,21 @@ void* validateRows(void *infoStruct){
 
     for ( int i = 0; i < 9; i++ ) { // for each element count the nunmber of times it occurs in the row.
         int elementCount = 0;
+        
         for ( int c = 0; c < 9; c++ ) {
             if ( neededValues[i] == args->puzzleArg[row][c] ) {
                 elementCount++;
             }
         }
+
         if ( elementCount != 1 ) {
             printf("Row %d doesn't have the required values.\n", row+1);
             isValid = 'i';
             // WILL NOT RETURN SO WE CAN CHECK EVERYHWERE IT IS NOT VALID
-            //return NULL;
             break;
         }
     }
-    //printf("Row %d VALID!\n", row);
+
     intptr_t i = isValid;
     return *(void **)&i;
     //pthread_exit(isValid); // pthead_exit should be used for early termination only https://pubs.opengroup.org/onlinepubs/9699919799/functions/pthread_exit.html
@@ -205,8 +226,7 @@ void* validateRows(void *infoStruct){
 
 
 void* validateCols(void *infoStruct){
-    //printf("Thread entered 'validateCols' function.\n");
-    //Begin validating
+
     struct arg_struct *args = (struct arg_struct *)infoStruct; // Casts a struct we can reference from the param
     char isValid = 'v';
     int col = args->puzzleIdx;
@@ -215,11 +235,13 @@ void* validateCols(void *infoStruct){
 
     for ( int i = 0; i < 9; i++ ) { // for each element count the nunmber of times it occurs in the row.
         int elementCount = 0;
+        
         for ( int r = 0; r < 9; r++ ) {
             if ( neededValues[i] == args->puzzleArg[r][col] ) {
                 elementCount++;
             }
         }
+
         if ( elementCount != 1 ) {
             printf("Column %d doesn't have the required values.\n", col+1);
             isValid = 'i';
@@ -228,6 +250,7 @@ void* validateCols(void *infoStruct){
             break;
         }
     }
+
     //printf("Col %d VALID!\n", col);
     intptr_t i = isValid;
     return *(void **)&i;
@@ -239,12 +262,9 @@ void* validateCols(void *infoStruct){
 
 
 void* validateGrids(void *infoStruct) {
-    //printf("Thread entered 'validateGrids' function.\n");
+    
     char isValid = 'v';
     struct arg_struct *args = (struct arg_struct *)infoStruct; // Casts a struct we can reference from the param
-    //printf("%d\n", args->puzzleIdx); // Just checking the values are correct for each call. Should be 0-8
-
-    //Begin validating
     int row = args->puzzleIdx / 3 * 3;
     int col = args->puzzleIdx % 3 * 3;
     int maxRow = row + 3;
@@ -300,11 +320,11 @@ void* validateGrids(void *infoStruct) {
                             printf("The bottom right subgrid doesn't have the required values.\n");
 
                     }
-            
             }
             break;
         }
     }
+    
     intptr_t i = isValid;
     return *(void **)&i;
 }
