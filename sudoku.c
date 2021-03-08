@@ -92,25 +92,27 @@ int main(int argc, char *argv[]) {
         }
 
         pid_t pid[27];                                                      // We need 27 forked processes
-        void* v1;                                                            // These void*'s were made for testing return values of functions
-        void* v2;                                                             // Not necessarily needed. Remove if you see fit
-        void* v3;
-
-        for (int i = 0; i < 27; i++) { 
-            pid[i] = fork();                                                //Forks 27 times and adds fork return value to pid array
+        char isValid = 'v';                                                 // Tracks if each section is valid.  in child it will pass to the parent. Parent value will be checked to see if Sudoku is Valid or not. 
+       for (int i = 0; i < 27; i++) { 
+            pid[i] = vfork();                                                //Forks 27 times and adds fork return value to pid array: Changed to vfork to support changing isValid by children.
 
             if (pid[i] == 0){
-                if (i >= 0 && i < 9){                                       // 9 forks shold call this function with arrayStruct[0-9]
-                    v1 = validateRows(arrayStruct[i%9]);
-                    printf("%d",v1);
+                if (i >= 0 && i < 9){                                       
+                    if((int*)validateRows(arrayStruct[i%9]) == (void*)'i'){ // 9 forks shold call this function with arrayStruct[0-9]. Compares value returned by the function with invalid, if invalid it will set parent isValid to false.
+                        isValid = 'i';
+                    }
                     exit(0);
                 }
                 else if (i >= 9 && i < 17){
-                    v2 = validateCols(arrayStruct[i%9]);                    // 9 forks shold call this function with arrayStruct[0-9]
+                    if((int*) validateCols(arrayStruct[i%9]) == (void*)'i'){ // 9 forks shold call this function with arrayStruct[0-9]. Compares value returned by the function with invalid, if invalid it will set parent isValid to false.
+                        isValid = 'i';
+                    }                   
                     exit(0);
                 }
-                else if (i >= 17 && i < 27){
-                    v3 = validateGrids(arrayStruct[i%9]);                   // The last 9 forks shold call this function with arrayStruct[0-9]
+                else if (i >= 17 && i < 27){    
+                   if((int*) validateGrids(arrayStruct[i%9]) == (void*)'i'){  // The last 9 forks shold call this function with arrayStruct[0-9]. Compares value returned by the function with invalid, if invalid it will set parent isValid to false.
+                        isValid = 'i';
+                    }                  
                     exit(0);
                 }  
                 else{
@@ -120,7 +122,10 @@ int main(int argc, char *argv[]) {
             }
         }
         while(wait(NULL) != -1); //Helps reap zombie children :) - Use for return values
-        // We need final output statement.
+
+         if(isValid == 'i') printf("The input is not a valid Sudoku.\n"); //Tracks parent isValid which will be adjusted by children forks with vfork().
+        else printf("The input is a valid Sudoku.\n");
+
     }
     else /*if (verbose)*/ { // THREADS: e.i. -> ./sudoku.x < tests/example2.txt
         int numThreads = 27;
