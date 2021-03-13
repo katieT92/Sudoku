@@ -168,6 +168,7 @@ int main(int argc, char *argv[]) {
         }   
 
         if(validChar == 'i') printf("The input is not a valid Sudoku.\n");
+
         else printf("The input is a valid Sudoku.\n");
 
     }
@@ -197,7 +198,6 @@ void* validateRows(void *infoStruct){
     struct arg_struct *args = (struct arg_struct *)infoStruct; // Casts a struct we can reference from the param
     char isValid = 'v';
     int row = args->puzzleIdx;
-    int col = 0;
     int neededValues[9] = {1, 2, 3, 4, 5, 6, 7, 8, 9};
 
     for ( int i = 0; i < 9; i++ ) { // for each element count the nunmber of times it occurs in the row.
@@ -230,7 +230,6 @@ void* validateCols(void *infoStruct){
     struct arg_struct *args = (struct arg_struct *)infoStruct; // Casts a struct we can reference from the param
     char isValid = 'v';
     int col = args->puzzleIdx;
-    int row = 0;
     int neededValues[9] = {1, 2, 3, 4, 5, 6, 7, 8, 9};
 
     for ( int i = 0; i < 9; i++ ) { // for each element count the nunmber of times it occurs in the row.
